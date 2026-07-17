@@ -13,6 +13,8 @@ import {
   REF_APPLIANCES, REF_CITIES, REF_SP_PRICES, type RefItem,
 } from "./reference";
 import { computeAll, type SectionTotals } from "./calc";
+import ThemeSwitcher from "../app/ThemeSwitcher";
+import DrawingUpload, { type DrawingApplyValues } from "./DrawingUpload";
 
 /* ---------------- helpers ---------------- */
 
@@ -20,16 +22,27 @@ const fmt = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFr
 const rub = (v: number) => `${fmt.format(v)} ₽`;
 
 const inputCls =
-  "w-full rounded-lg border border-sand-dark bg-white px-2.5 py-1.5 text-right text-sm tabular-nums " +
-  "text-cocoa shadow-[inset_0_1px_2px_rgba(61,47,38,0.05)] outline-none transition " +
+  "w-full rounded-lg border border-sand-dark bg-field px-2.5 py-1.5 text-right text-sm tabular-nums " +
+  "text-cocoa shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] outline-none transition " +
   "focus:border-terra focus:ring-2 focus:ring-terra/15 placeholder:text-taupe/50";
+
+const selectCls =
+  "w-full rounded-lg border border-sand-dark bg-field px-2.5 py-[7px] text-sm text-cocoa " +
+  "shadow-[inset_0_1px_2px_rgba(0,0,0,0.05)] outline-none transition focus:border-terra focus:ring-2 focus:ring-terra/15";
+
+/* Пресеты конструктива → коэф. толщины рамы (пользователь может поправить коэффициент вручную). */
+const CONSTRUCTION_PRESETS: Record<Params["construction"], { label: string; frameCoef: number }> = {
+  light: { label: "Лёгкий", frameCoef: 0.9 },
+  standard: { label: "Стандарт", frameCoef: 1 },
+  reinforced: { label: "Усиленный", frameCoef: 1.2 },
+};
 
 /* ---------------- small UI blocks ---------------- */
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <section
-      className={`rounded-2xl border border-sand bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(61,47,38,0.05),0_10px_28px_-14px_rgba(61,47,38,0.14)] ${className}`}
+      className={`rounded-2xl border border-sand bg-card p-5 sm:p-6 shadow-[var(--shadow-card)] ${className}`}
     >
       {children}
     </section>
@@ -311,26 +324,66 @@ export default function CalculatorApp() {
   const resetAll = useCallback(() => reset(makeDefaults()), [reset]);
   const toggleRef = useCallback(() => setRefOpen((o) => !o), []);
 
+  /* --- v4: новые параметры --- */
+  // Конструктив: пресет подставляет коэф. толщины рамы (его можно поправить вручную).
+  const onConstructionChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const c = e.target.value as Params["construction"];
+      const preset = CONSTRUCTION_PRESETS[c];
+      if (preset) setValue("params.frameCoef", preset.frameCoef, { shouldDirty: true });
+    },
+    [setValue],
+  );
+
+  // Значения из распознанного чертежа → только заполненные поля.
+  const applyDrawing = useCallback(
+    (v: DrawingApplyValues) => {
+      const map: [keyof Params, number | null | undefined][] = [
+        ["buildingLength", v.buildingLength],
+        ["buildingWidth", v.buildingWidth],
+        ["floors", v.floors],
+        ["footprintArea", v.footprintArea],
+        ["totalArea", v.totalArea],
+        ["spThickness", v.spThickness],
+      ];
+      for (const [key, val] of map) {
+        if (val != null) setValue(`params.${key}` as never, val as never, { shouldDirty: true });
+      }
+    },
+    [setValue],
+  );
+
+  const floorsVal = Number(values.params.floors) || 0;
+  const footprintVal = Number(values.params.footprintArea) || 0;
+  const suggestedTotal = floorsVal > 1 && footprintVal > 0 ? footprintVal * floorsVal : 0;
+  const applySuggestedTotal = useCallback(() => {
+    if (suggestedTotal > 0)
+      setValue("params.totalArea", Number(suggestedTotal.toFixed(2)), { shouldDirty: true });
+  }, [setValue, suggestedTotal]);
+
   const B = result.blocks;
 
   return (
     <div className="min-h-screen bg-cream pb-16 text-cocoa">
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-sand bg-parchment/85 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-terra-soft to-terra-dark text-white shadow-[0_4px_12px_rgba(194,112,61,0.35)]">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-gradient-to-br from-terra-soft to-terra-dark text-white shadow-[0_4px_12px_rgba(194,112,61,0.35)]">
               <Calculator className="h-5 w-5" />
             </span>
-            <div>
-              <h1 className="text-base font-semibold leading-tight text-cocoa sm:text-lg">Калькулятор себестоимости блок-модулей</h1>
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-semibold leading-tight text-cocoa sm:text-lg">Калькулятор себестоимости блок-модулей</h1>
               <p className="hidden text-xs text-taupe sm:block">Модульные здания · расчет в реальном времени</p>
             </div>
           </div>
-          <button type="button" onClick={resetAll}
-            className="inline-flex items-center gap-2 rounded-lg border border-sand-dark bg-white px-3 py-2 text-sm font-medium text-cocoa-soft shadow-sm transition hover:border-terra/40 hover:bg-terra-50 hover:text-terra-dark">
-            <RotateCcw className="h-4 w-4" /> Сбросить
-          </button>
+          <div className="flex items-center gap-2.5">
+            <ThemeSwitcher />
+            <button type="button" onClick={resetAll}
+              className="inline-flex items-center gap-2 rounded-lg border border-sand-dark bg-card px-3 py-2 text-sm font-medium text-cocoa-soft shadow-sm transition hover:border-terra/40 hover:bg-terra-50 hover:text-terra-dark">
+              <RotateCcw className="h-4 w-4" /> Сбросить
+            </button>
+          </div>
         </div>
       </header>
 
@@ -355,13 +408,70 @@ export default function CalculatorApp() {
               <ParamField label="Ширина СП, м" name="spWidth" register={register} />
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-taupe">Признак продукции</span>
-                <select {...register("params.productType")}
-                  className="w-full rounded-lg border border-sand-dark bg-white px-2.5 py-[7px] text-sm text-cocoa shadow-[inset_0_1px_2px_rgba(61,47,38,0.05)] outline-none transition focus:border-terra focus:ring-2 focus:ring-terra/15">
+                <select {...register("params.productType")} className={selectCls}>
                   <option value="building">Здание</option>
                   <option value="none">— (пусто)</option>
                 </select>
               </label>
+
+              {/* --- v4: расширенные параметры --- */}
+              <ParamField label="Кол-во этажей" name="floors" step="1" register={register} />
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-taupe">Толщина СП, мм</span>
+                <select
+                  {...register("params.spThickness", {
+                    setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+                  })}
+                  className={selectCls}
+                >
+                  <option value="">—</option>
+                  <option value="80">80</option>
+                  <option value="100">100</option>
+                  <option value="150">150</option>
+                  <option value="200">200</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-taupe">Конструктив</span>
+                <select
+                  {...register("params.construction", { onChange: onConstructionChange })}
+                  className={selectCls}
+                >
+                  <option value="light">Лёгкий (рама ×0.9)</option>
+                  <option value="standard">Стандарт (рама ×1)</option>
+                  <option value="reinforced">Усиленный (рама ×1.2)</option>
+                </select>
+              </label>
+              <label className="flex cursor-pointer items-end gap-2 pb-1.5">
+                <input
+                  type="checkbox"
+                  {...register("params.italianSystem")}
+                  className="h-4 w-4 rounded border-sand-dark accent-[var(--color-terra)]"
+                />
+                <span className="text-xs font-medium text-cocoa-soft">Итальянская система</span>
+              </label>
             </div>
+
+            {/* Подсказка: общая площадь при этажности > 1 */}
+            {suggestedTotal > 0 && (
+              <p className="mt-3 flex flex-wrap items-center gap-x-2 text-xs text-cocoa-soft">
+                <span>
+                  Этажность {floorsVal}: общая площадь обычно = застройка × этажи ={" "}
+                  <b className="tabular-nums">{fmt.format(suggestedTotal)} м²</b>
+                </span>
+                <button
+                  type="button"
+                  onClick={applySuggestedTotal}
+                  className="rounded-md bg-terra-50 px-2 py-0.5 font-medium text-terra-dark ring-1 ring-terra-100 transition hover:bg-terra-100"
+                >
+                  Применить
+                </button>
+              </p>
+            )}
+
+            {/* Загрузка чертежа: ИИ распознаёт размеры и подставляет в форму */}
+            <DrawingUpload onApply={applyDrawing} />
+
             <p className="mt-4 rounded-xl bg-terra-50 px-3.5 py-2.5 text-xs leading-relaxed text-terra-dark ring-1 ring-terra-100">
               Если ячейка «Кол-во» или «Цена» пустая либо равна 0 — позиция <b>не участвует</b> в расчете стоимости.
               Значение коэффициента «1» принимает полную стоимость м²; ниже/выше «1» — уменьшает/увеличивает её.
@@ -527,7 +637,7 @@ export default function CalculatorApp() {
 
         {/* ============ RIGHT: sticky summary ============ */}
         <aside className="xl:sticky xl:top-20 xl:h-fit">
-          <div className="rounded-2xl bg-gradient-to-br from-[#463528] via-cocoa to-[#2E211A] p-5 text-white shadow-[0_16px_36px_-14px_rgba(61,47,38,0.55)] ring-1 ring-[#5A4636]">
+          <div className="rounded-2xl bg-gradient-to-br from-[#463528] via-[#3D2F26] to-[#2E211A] p-5 text-white shadow-[0_16px_36px_-14px_rgba(61,47,38,0.55)] ring-1 ring-[#5A4636]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-terra-soft">Итог по проекту</p>
             <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight">{rub(result.grand.total)}</p>
             <p className="text-xs text-white/45">Итого с НДС по всем разделам</p>
@@ -551,7 +661,7 @@ export default function CalculatorApp() {
             </div>
           </div>
 
-          <div className="mt-4 rounded-2xl border border-sand bg-white p-4 shadow-[0_1px_2px_rgba(61,47,38,0.05),0_10px_28px_-14px_rgba(61,47,38,0.14)]">
+          <div className="mt-4 rounded-2xl border border-sand bg-card p-4 shadow-[var(--shadow-card)]">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-taupe">По разделам (с НДС)</p>
             <ul className="space-y-1.5 text-sm">
               {([
@@ -567,6 +677,18 @@ export default function CalculatorApp() {
                 </li>
               ))}
             </ul>
+            {/* Паспорт проекта: расширенные параметры (справочно) */}
+            {(Number(values.params.spThickness) > 0 ||
+              Number(values.params.floors) > 1 ||
+              values.params.italianSystem ||
+              values.params.construction !== "standard") && (
+              <p className="mt-3 border-t border-sand pt-3 text-[11px] leading-relaxed text-taupe">
+                {Number(values.params.spThickness) > 0 && <>СП {values.params.spThickness} мм · </>}
+                {Number(values.params.floors) > 1 && <>этажей {values.params.floors} · </>}
+                {CONSTRUCTION_PRESETS[values.params.construction]?.label ?? ""}
+                {values.params.italianSystem && " · итальянская система"}
+              </p>
+            )}
           </div>
         </aside>
       </main>
