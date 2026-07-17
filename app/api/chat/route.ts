@@ -14,7 +14,7 @@ type ChatMessage = {
   content: string;
 };
 
-type ProviderName = 'openrouter' | 'github' | 'zai' | 'pollinations';
+type ProviderName = 'openrouter' | 'github' | 'zai' | 'pollinations' | 'llm7';
 
 interface ProviderConfig {
   baseUrl: string;
@@ -49,10 +49,19 @@ const PROVIDERS: Record<ProviderName, ProviderConfig> = {
     model: 'openai',
     // Ключ не нужен: Pollinations принимает любой Bearer-токен (проверено живым запросом).
   },
+  llm7: {
+    baseUrl: 'https://api.llm7.io/v1',
+    model: 'default',
+    // Анонимный доступ: Bearer "unused" (проверено живым запросом 17.07.2026).
+  },
 };
 
 // Порядок перебора в режиме auto (когда AI_PROVIDER не задан).
 const AUTO_PRIORITY: ProviderName[] = ['openrouter', 'github', 'zai', 'pollinations'];
+
+// Провайдеры без ключа: автоматический запасной вариант, если основной лимитирован (429)
+// или недоступен. В auto-режиме после основного пробуем оставшиеся из этого списка.
+const KEYLESS_PROVIDERS: ProviderName[] = ['pollinations', 'llm7'];
 
 const SYSTEM_PROMPT =
   'Ты — ИИ-помощник веб-приложения "Калькулятор себестоимости блок-модулей". ' +
@@ -83,7 +92,13 @@ function isRateLimited(ip: string): boolean {
 }
 
 function isProviderName(value: string): value is ProviderName {
-  return value === 'openrouter' || value === 'github' || value === 'zai' || value === 'pollinations';
+  return (
+    value === 'openrouter' ||
+    value === 'github' ||
+    value === 'zai' ||
+    value === 'pollinations' ||
+    value === 'llm7'
+  );
 }
 
 function apiKeyFor(name: ProviderName): string | null {
@@ -108,7 +123,7 @@ function resolveProvider(): ProviderResolution {
       };
     }
     const apiKey = apiKeyFor(forced);
-    if (forced !== 'pollinations' && !apiKey) {
+    if (!KEYLESS_PROVIDERS.includes(forced) && !apiKey) {
       return {
         ok: false,
         error: `AI_PROVIDER=${forced}, но не задана переменная окружения ${PROVIDERS[forced].apiKeyEnv}.`,
@@ -149,8 +164,6 @@ export async function POST(request: Request) {
   if (!resolved.ok) {
     return Response.json({ error: `Сервер не настроен: ${resolved.error}` }, { status: 500 });
   }
-  const provider = PROVIDERS[resolved.name];
-
   // --- Валидация входа ---
   let body: unknown;
   try {
@@ -176,72 +189,103 @@ export async function POST(request: Request) {
   }
 
   // --- Вызов LLM ---
-  const requestBody = JSON.stringify({
-    model: provider.model,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...messages.slice(-12), // не раздуваем контекст — бережём бесплатные токены
-    ],
-    temperature: 0.4,
-    max_tokens: 1000,
-  });
+  const makeBody = (model: string) =>
+    JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...messages.slice(-12), // не раздуваем контекст — бережём бесплатные токены
+      ],
+      temperature: 0.4,
+      max_tokens: 1000,
+    });
 
-  // До двух попыток: основная + один повтор при сетевой ошибке/таймауте/5xx (пауза 1 сек).
-  // Таймаут апстрима 20 сек ⇒ худший случай ~41 сек < maxDuration (60).
-  const fetchWithRetry = async (): Promise<Response> => {
-    let lastErr: unknown;
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  // До двух попыток на провайдера. Повторяем при сетевой ошибке, таймауте, 5xx и 429
+  // (после 429 ждём дольше — лимит успевает сброситься). Таймаут 12 сек ⇒
+  // худший случай на провайдера ~28 сек, два keyless-провайдера ~56 сек < maxDuration (60).
+  async function callProvider(
+    name: ProviderName,
+    apiKey: string | null,
+  ): Promise<{ ok: true; reply: string } | { ok: false; status: number | null }> {
+    const cfg = PROVIDERS[name];
+    const body = makeBody(cfg.model);
+    let lastStatus: number | null = null;
+
     for (let attempt = 0; attempt < 2; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 1000));
+      if (attempt > 0) await sleep(lastStatus === 429 ? 4000 : 1000);
       try {
-        const resp = await fetch(`${provider.baseUrl}/chat/completions`, {
+        const resp = await fetch(`${cfg.baseUrl}/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            // Для Pollinations ключа нет — подставляем любую строку, сервис её принимает.
-            Authorization: `Bearer ${resolved.apiKey ?? 'anonymous'}`,
-            ...(provider.extraHeaders ?? {}),
+            // Keyless-провайдеры (Pollinations, LLM7) принимают любой Bearer (по докам — "unused").
+            Authorization: `Bearer ${apiKey ?? 'unused'}`,
+            ...(cfg.extraHeaders ?? {}),
           },
-          body: requestBody,
-          signal: AbortSignal.timeout(20_000), // таймаут 20 сек на ответ модели
+          body,
+          signal: AbortSignal.timeout(12_000),
         });
-        // 5xx — проблема на стороне провайдера, повторяем один раз.
-        if (resp.status >= 500 && attempt === 0) {
-          console.error('LLM upstream 5xx, повторяем', resolved.name, resp.status);
+        lastStatus = resp.status;
+
+        if (resp.status === 429 || resp.status >= 500) {
+          console.error(`LLM upstream ${resp.status}, повтор (попытка ${attempt + 1})`, name);
           continue;
         }
-        return resp;
+        if (!resp.ok) {
+          // 4xx (кроме 429) — смысла повторять нет (например, неверный ключ).
+          const text = await resp.text();
+          console.error('LLM upstream error', name, resp.status, text.slice(0, 300));
+          return { ok: false, status: resp.status };
+        }
+
+        const data = (await resp.json()) as {
+          choices?: Array<{ message?: { content?: string } }>;
+        };
+        const reply = data.choices?.[0]?.message?.content?.trim();
+        if (!reply) {
+          console.error('LLM empty reply', name);
+          return { ok: false, status: resp.status };
+        }
+        return { ok: true, reply };
       } catch (err) {
-        // Сетевая ошибка или таймаут — один повтор.
-        console.error('LLM fetch failed (попытка', attempt + 1, ')', resolved.name, err);
-        lastErr = err;
+        console.error('LLM fetch failed (попытка', attempt + 1, ')', name, err);
+        lastStatus = null;
       }
     }
-    throw lastErr;
-  };
+    return { ok: false, status: lastStatus };
+  }
 
-  try {
-    const upstream = await fetchWithRetry();
+  // Цепочка: основной провайдер; в auto-режиме — затем остальные keyless-провайдеры.
+  const forced = Boolean(process.env.AI_PROVIDER?.trim());
+  const chain: ProviderName[] = forced
+    ? [resolved.name]
+    : [resolved.name, ...KEYLESS_PROVIDERS.filter((k) => k !== resolved.name)];
 
-    if (!upstream.ok) {
-      const text = await upstream.text();
-      console.error('LLM upstream error', resolved.name, upstream.status, text.slice(0, 500));
-      return Response.json(
-        { error: `Модель временно недоступна (${upstream.status}). Попробуйте позже.` },
-        { status: 502 },
-      );
+  let lastStatus: number | null = null;
+  for (const name of chain) {
+    const apiKey = name === resolved.name ? resolved.apiKey : apiKeyFor(name);
+    const result = await callProvider(name, apiKey);
+    if (result.ok) {
+      return Response.json({ reply: result.reply });
     }
+    lastStatus = result.status;
+    console.error('Провайдер не ответил, пробуем следующий:', name, 'статус:', result.status);
+  }
 
-    const data = (await upstream.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const reply = data.choices?.[0]?.message?.content?.trim();
-    return Response.json({ reply: reply || 'Модель вернула пустой ответ.' });
-  } catch (err) {
-    // Сетевая ошибка или таймаут при обращении к провайдеру.
-    console.error('LLM request failed', resolved.name, err);
+  if (lastStatus === 429) {
     return Response.json(
-      { error: 'Не удалось получить ответ от модели. Попробуйте позже.' },
+      {
+        error:
+          'Бесплатная модель сейчас перегружена запросами (429). Подождите 30–60 секунд и отправьте сообщение ещё раз. ' +
+          'Чтобы убрать это ограничение насовсем, добавьте бесплатный ключ OPENROUTER_API_KEY в настройках Vercel.',
+      },
       { status: 502 },
     );
   }
+  return Response.json(
+    { error: 'Не удалось получить ответ от модели. Попробуйте позже.' },
+    { status: 502 },
+  );
 }
