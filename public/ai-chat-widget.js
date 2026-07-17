@@ -3,33 +3,42 @@
 (function () {
   'use strict';
 
-  // Тёплая палитра проекта
-  var ACCENT = '#C2703D';      // терракотовый акцент
-  var ACCENT_SOFT = '#D98E5F'; // светлый терракотовый (градиенты)
-  var COCOA = '#3D2F26';       // основной текст
-  var TAUPE = '#A08B7C';       // вторичный текст
-  var SAND = '#EFE6DC';        // тёплые бордеры
-  var CREAM = '#FAF7F3';       // фон
+  // Палитра берётся из CSS-переменных темы приложения (app/globals.css) —
+  // виджет автоматически следует выбранной теме. Фолбэки — «тёплая» тема.
+  var ACCENT = 'var(--color-terra, #C2703D)';
+  var ACCENT_SOFT = 'var(--color-terra-soft, #D98E5F)';
+  var ACCENT_DARK = 'var(--color-terra-dark, #A85A2E)';
+  var COCOA = 'var(--color-cocoa, #3D2F26)';
+  var TAUPE = 'var(--color-taupe, #A08B7C)';
+  var SAND = 'var(--color-sand, #EFE6DC)';
+  var SAND_DARK = 'var(--color-sand-dark, #E2D3C4)';
+  var CREAM = 'var(--color-cream, #FAF7F3)';
+  var CARD = 'var(--color-card, #FFFFFF)';
+  var FIELD = 'var(--color-field, #FFFFFF)';
+  var PARCHMENT = 'var(--color-parchment, #FDFBF8)';
+  var TERRA50 = 'var(--color-terra-50, #FBF1EA)';
+  var GLOW = 'color-mix(in srgb, var(--color-terra, #C2703D) 35%, transparent)';
+  var GLOW_STRONG = 'color-mix(in srgb, var(--color-terra, #C2703D) 50%, transparent)';
 
   var css = `
   #bm-chat-btn{position:fixed;right:20px;bottom:20px;width:58px;height:58px;border-radius:50%;
-    background:linear-gradient(135deg,${ACCENT_SOFT} 0%,${ACCENT} 60%,#A85A2E 100%);color:#fff;border:none;cursor:pointer;z-index:99998;
-    box-shadow:0 8px 22px rgba(194,112,61,.35);display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,${ACCENT_SOFT} 0%,${ACCENT} 60%,${ACCENT_DARK} 100%);color:#fff;border:none;cursor:pointer;z-index:99998;
+    box-shadow:0 8px 22px ${GLOW};display:flex;align-items:center;justify-content:center;
     transition:transform .18s ease, box-shadow .18s ease;animation:bm-glow 3.2s ease-in-out infinite;}
   #bm-chat-btn:hover{transform:translateY(-2px) scale(1.04);animation-play-state:paused;
-    box-shadow:0 12px 28px rgba(194,112,61,.45);}
+    box-shadow:0 12px 28px ${GLOW_STRONG};}
   #bm-chat-btn:active{transform:scale(.97);}
   #bm-chat-btn svg{width:26px;height:26px;}
   @keyframes bm-glow{
-    0%,100%{box-shadow:0 8px 22px rgba(194,112,61,.35);}
-    50%{box-shadow:0 8px 26px rgba(194,112,61,.5),0 0 0 8px rgba(194,112,61,.10);}}
+    0%,100%{box-shadow:0 8px 22px ${GLOW};}
+    50%{box-shadow:0 8px 26px ${GLOW_STRONG},0 0 0 8px color-mix(in srgb, var(--color-terra, #C2703D) 10%, transparent);}}
   #bm-chat-panel{position:fixed;right:20px;bottom:90px;width:384px;max-width:calc(100vw - 32px);
-    height:560px;max-height:calc(100vh - 124px);background:#FDFBF8;border-radius:18px;z-index:99999;
-    box-shadow:0 20px 56px rgba(61,47,38,.22),0 2px 8px rgba(61,47,38,.08);display:none;flex-direction:column;overflow:hidden;
+    height:560px;max-height:calc(100vh - 124px);background:${PARCHMENT};border-radius:18px;z-index:99999;
+    box-shadow:0 20px 56px rgba(0,0,0,.22),0 2px 8px rgba(0,0,0,.08);display:none;flex-direction:column;overflow:hidden;
     font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;border:1px solid ${SAND};}
   #bm-chat-panel.open{display:flex;animation:bm-panel-in .24s cubic-bezier(.2,.9,.3,1.1);}
   @keyframes bm-panel-in{from{opacity:0;transform:translateY(16px) scale(.98);}to{opacity:1;transform:none;}}
-  .bm-chat-head{padding:14px 16px;background:linear-gradient(135deg,${ACCENT_SOFT} 0%,${ACCENT} 55%,#A85A2E 100%);
+  .bm-chat-head{padding:14px 16px;background:linear-gradient(135deg,${ACCENT_SOFT} 0%,${ACCENT} 55%,${ACCENT_DARK} 100%);
     display:flex;align-items:center;gap:11px;color:#fff;}
   .bm-chat-ava{flex:none;width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.18);
     display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);}
@@ -40,36 +49,36 @@
     font-size:17px;cursor:pointer;color:#fff;line-height:1;transition:background .15s;}
   .bm-chat-close:hover{background:rgba(255,255,255,.28);}
   .bm-chat-msgs{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;background:${CREAM};
-    scrollbar-width:thin;scrollbar-color:#D9C7B8 transparent;}
+    scrollbar-width:thin;scrollbar-color:${SAND_DARK} transparent;}
   .bm-chat-msgs::-webkit-scrollbar{width:6px;}
-  .bm-chat-msgs::-webkit-scrollbar-thumb{background:#D9C7B8;border-radius:3px;}
+  .bm-chat-msgs::-webkit-scrollbar-thumb{background:${SAND_DARK};border-radius:3px;}
   .bm-msg{max-width:84%;padding:10px 14px;font-size:14px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;
     animation:bm-msg-in .18s ease-out;}
   @keyframes bm-msg-in{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
   .bm-msg.user{align-self:flex-end;background:linear-gradient(135deg,${ACCENT_SOFT},${ACCENT});color:#fff;
-    border-radius:15px 15px 4px 15px;box-shadow:0 3px 10px rgba(194,112,61,.28);}
-  .bm-msg.bot{align-self:flex-start;background:#fff;color:${COCOA};border:1px solid ${SAND};
-    border-radius:15px 15px 15px 4px;box-shadow:0 2px 6px rgba(61,47,38,.06);}
+    border-radius:15px 15px 4px 15px;box-shadow:0 3px 10px ${GLOW};}
+  .bm-msg.bot{align-self:flex-start;background:${CARD};color:${COCOA};border:1px solid ${SAND};
+    border-radius:15px 15px 15px 4px;box-shadow:0 2px 6px rgba(0,0,0,.06);}
   .bm-msg.err{align-self:flex-start;background:#FBEBE4;color:#A8402A;border:1px solid #F0D2C6;font-size:13px;
     border-radius:12px;}
   .bm-typing{align-self:flex-start;display:flex;align-items:center;gap:7px;color:${TAUPE};font-size:13px;
-    background:#fff;border:1px solid ${SAND};border-radius:15px 15px 15px 4px;padding:9px 13px;
-    box-shadow:0 2px 6px rgba(61,47,38,.06);}
+    background:${CARD};border:1px solid ${SAND};border-radius:15px 15px 15px 4px;padding:9px 13px;
+    box-shadow:0 2px 6px rgba(0,0,0,.06);}
   .bm-dots{display:inline-flex;gap:3px;}
   .bm-dots i{width:6px;height:6px;border-radius:50%;background:${ACCENT};animation:bm-bounce 1.1s infinite;}
   .bm-dots i:nth-child(2){animation-delay:.15s;}
   .bm-dots i:nth-child(3){animation-delay:.3s;}
   @keyframes bm-bounce{0%,60%,100%{transform:translateY(0);opacity:.35;}30%{transform:translateY(-4px);opacity:1;}}
-  .bm-chat-input{display:flex;gap:9px;padding:12px;border-top:1px solid ${SAND};background:#FDF9F4;align-items:flex-end;}
-  .bm-chat-input textarea{flex:1;resize:none;border:1px solid #E5D5C6;border-radius:12px;padding:10px 13px;
-    font-size:14px;font-family:inherit;outline:none;max-height:96px;background:#fff;color:${COCOA};
+  .bm-chat-input{display:flex;gap:9px;padding:12px;border-top:1px solid ${SAND};background:${TERRA50};align-items:flex-end;}
+  .bm-chat-input textarea{flex:1;resize:none;border:1px solid ${SAND_DARK};border-radius:12px;padding:10px 13px;
+    font-size:14px;font-family:inherit;outline:none;max-height:96px;background:${FIELD};color:${COCOA};
     line-height:1.4;transition:border-color .15s, box-shadow .15s;}
-  .bm-chat-input textarea:focus{border-color:${ACCENT};box-shadow:0 0 0 3px rgba(194,112,61,.14);}
-  .bm-chat-input textarea::placeholder{color:#C4B3A4;}
+  .bm-chat-input textarea:focus{border-color:${ACCENT};box-shadow:0 0 0 3px ${GLOW};}
+  .bm-chat-input textarea::placeholder{color:${TAUPE};}
   .bm-chat-input button{flex:none;width:42px;height:42px;border:none;border-radius:12px;cursor:pointer;color:#fff;
     background:linear-gradient(135deg,${ACCENT_SOFT},${ACCENT});display:flex;align-items:center;justify-content:center;
-    box-shadow:0 3px 9px rgba(194,112,61,.3);transition:opacity .15s, transform .15s, box-shadow .15s;}
-  .bm-chat-input button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 5px 13px rgba(194,112,61,.4);}
+    box-shadow:0 3px 9px ${GLOW};transition:opacity .15s, transform .15s, box-shadow .15s;}
+  .bm-chat-input button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 5px 13px ${GLOW_STRONG};}
   .bm-chat-input button:disabled{opacity:.45;cursor:default;}`;
 
   var style = document.createElement('style');
