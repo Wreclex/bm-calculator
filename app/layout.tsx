@@ -22,6 +22,10 @@ export default function RootLayout({
   return (
     <html lang="ru" className={inter.variable}>
       <body className="bg-cream text-cocoa antialiased">
+        {/* Инициализация темы ДО первой отрисовки — без вспышки чужой палитры. */}
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`try{var t=localStorage.getItem('bm-theme');if(t==='business'||t==='dark'){document.documentElement.dataset.theme=t;}}catch(e){}`}
+        </Script>
         {children}
         {/* ИИ-чат-помощник: плавающая кнопка + окно чата, vanilla JS из public/.
             lazyOnload — рекомендация доков Next 16 для чат-виджетов. */}

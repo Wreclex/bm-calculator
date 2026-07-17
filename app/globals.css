@@ -1,20 +1,100 @@
 @import "tailwindcss";
 
-/* ===== Тёплая светлая тема «молоко и терракота» ===== */
-@theme {
-  --color-cream: #FAF7F3;       /* фон страницы — молочно-кремовый */
-  --color-parchment: #FDFBF8;   /* чуть светлее — шапки, плашки */
-  --color-sand: #EFE6DC;        /* тонкие тёплые бордеры */
-  --color-sand-dark: #E2D3C4;   /* бордеры инпутов */
-  --color-terra: #C2703D;       /* терракотовый акцент */
-  --color-terra-dark: #A85A2E;  /* акцент при наведении / сильный текст */
-  --color-terra-soft: #D98E5F;  /* светлый терракотовый для градиентов */
-  --color-terra-50: #FBF1EA;    /* едва тёплая заливка */
-  --color-terra-100: #F5E2D3;   /* тёплая заливка поглубже */
-  --color-cocoa: #3D2F26;       /* основной текст — тёмно-коричневый */
-  --color-cocoa-soft: #6B5748;  /* текст послабже */
-  --color-taupe: #A08B7C;       /* вторичный текст */
+/* ============================================================
+   ТЕМЫ. Палитра задаётся CSS-переменными на :root / [data-theme],
+   Tailwind-токены ссылаются на них через @theme inline —
+   поэтому смена data-theme мгновенно перекрашивает всё приложение
+   (включая vanilla-виджет чата: он использует те же переменные).
+   ============================================================ */
+
+@theme inline {
+  --color-cream: var(--cream);           /* фон страницы */
+  --color-parchment: var(--parchment);   /* шапки, плашки */
+  --color-card: var(--card);             /* карточки */
+  --color-field: var(--field);           /* поля ввода */
+  --color-sand: var(--sand);             /* тонкие бордеры */
+  --color-sand-dark: var(--sand-dark);   /* бордеры инпутов */
+  --color-terra: var(--terra);           /* акцент */
+  --color-terra-dark: var(--terra-dark); /* акцент hover / сильный текст */
+  --color-terra-soft: var(--terra-soft); /* светлый акцент для градиентов */
+  --color-terra-50: var(--terra-50);     /* едва заметная акцентная заливка */
+  --color-terra-100: var(--terra-100);   /* акцентная заливка поглубже */
+  --color-cocoa: var(--cocoa);           /* основной текст */
+  --color-cocoa-soft: var(--cocoa-soft); /* текст послабже */
+  --color-taupe: var(--taupe);           /* вторичный текст */
+  --color-zebra: var(--zebra);           /* зебра таблиц */
+  --color-rowhover: var(--rowhover);     /* hover строк таблиц */
   --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+/* ---------- Тема 1 (по умолчанию): «Тёплая» — молоко и терракота ---------- */
+:root,
+[data-theme="warm"] {
+  --cream: #FAF7F3;
+  --parchment: #FDFBF8;
+  --card: #FFFFFF;
+  --field: #FFFFFF;
+  --sand: #EFE6DC;
+  --sand-dark: #E2D3C4;
+  --terra: #C2703D;
+  --terra-dark: #A85A2E;
+  --terra-soft: #D98E5F;
+  --terra-50: #FBF1EA;
+  --terra-100: #F5E2D3;
+  --cocoa: #3D2F26;
+  --cocoa-soft: #6B5748;
+  --taupe: #A08B7C;
+  --zebra: #FBF7F1;
+  --rowhover: #F8EFE6;
+  --shadow-card: 0 1px 2px rgba(61, 47, 38, 0.05), 0 10px 28px -14px rgba(61, 47, 38, 0.14);
+  --selection: rgba(194, 112, 61, 0.22);
+  color-scheme: light;
+}
+
+/* ---------- Тема 2: «Деловая» — в духе Apple: воздух, нейтральность, синий акцент ---------- */
+[data-theme="business"] {
+  --cream: #F5F5F7;
+  --parchment: #FBFBFD;
+  --card: #FFFFFF;
+  --field: #FFFFFF;
+  --sand: #E6E6EB;
+  --sand-dark: #D2D2D7;
+  --terra: #0071E3;
+  --terra-dark: #0A5BC2;
+  --terra-soft: #4DA3FF;
+  --terra-50: #F0F7FF;
+  --terra-100: #E0EDFC;
+  --cocoa: #1D1D1F;
+  --cocoa-soft: #515154;
+  --taupe: #86868B;
+  --zebra: #FAFAFC;
+  --rowhover: #F2F7FE;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 32px -16px rgba(0, 0, 0, 0.12);
+  --selection: rgba(0, 113, 227, 0.18);
+  color-scheme: light;
+}
+
+/* ---------- Тема 3: «Тёмная» — графит с тёплым акцентом ---------- */
+[data-theme="dark"] {
+  --cream: #171614;
+  --parchment: #201E1B;
+  --card: #232019;
+  --field: #2B2721;
+  --sand: #37312A;
+  --sand-dark: #453E34;
+  --terra: #D98E5F;
+  --terra-dark: #E5A175;
+  --terra-soft: #C2703D;
+  --terra-50: #2A231C;
+  --terra-100: #3A2D22;
+  --cocoa: #F0EAE2;
+  --cocoa-soft: #CBBDAD;
+  --taupe: #998B7A;
+  --zebra: #262219;
+  --rowhover: #2E2820;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -16px rgba(0, 0, 0, 0.55);
+  --selection: rgba(217, 142, 95, 0.35);
+  color-scheme: dark;
 }
 
 body {
@@ -22,10 +102,11 @@ body {
   color: var(--color-cocoa);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 ::selection {
-  background: rgba(194, 112, 61, 0.22);
+  background: var(--selection);
 }
 
 /* ===== Таблицы калькулятора: внутренний скролл, липкий заголовок, зебра ===== */
@@ -34,16 +115,16 @@ body {
   max-height: 520px;
   border: 1px solid var(--color-sand);
   border-radius: 12px;
-  background: #fff;
+  background: var(--color-card);
   scrollbar-width: thin;
-  scrollbar-color: #d9c7b8 transparent;
+  scrollbar-color: var(--color-sand-dark) transparent;
 }
 .bm-table-wrap::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 .bm-table-wrap::-webkit-scrollbar-thumb {
-  background: #dcc9b9;
+  background: var(--color-sand-dark);
   border-radius: 4px;
 }
 .bm-table-wrap::-webkit-scrollbar-track {
@@ -77,19 +158,18 @@ body {
 }
 .bm-table tbody td {
   padding: 6px 8px;
-  border-bottom: 1px solid #f4ede6;
+  border-bottom: 1px solid var(--color-sand);
   vertical-align: middle;
 }
 .bm-table tbody tr:last-child td {
   border-bottom: none;
 }
-/* зебра — едва тёплая */
 .bm-table tbody tr:nth-child(even) {
-  background: #fbf7f1;
+  background: var(--color-zebra);
 }
 .bm-table tbody tr {
   transition: background 0.12s ease;
 }
 .bm-table tbody tr:hover {
-  background: #f8efe6;
+  background: var(--color-rowhover);
 }
