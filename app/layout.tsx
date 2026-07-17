@@ -1,5 +1,13 @@
 import Script from "next/script";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+// Inter с кириллицей; next/font сам хостит файлы — внешних запросов с клиента нет.
+const inter = Inter({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata = {
   title: 'Калькулятор БМ',
@@ -12,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ru">
-      <body className="bg-slate-50 text-slate-900 antialiased">
+    <html lang="ru" className={inter.variable}>
+      <body className="bg-cream text-cocoa antialiased">
         {children}
         {/* ИИ-чат-помощник: плавающая кнопка + окно чата, vanilla JS из public/.
             lazyOnload — рекомендация доков Next 16 для чат-виджетов. */}
