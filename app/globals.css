@@ -1,26 +1,95 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ===== Тёплая светлая тема «молоко и терракота» ===== */
+@theme {
+  --color-cream: #FAF7F3;       /* фон страницы — молочно-кремовый */
+  --color-parchment: #FDFBF8;   /* чуть светлее — шапки, плашки */
+  --color-sand: #EFE6DC;        /* тонкие тёплые бордеры */
+  --color-sand-dark: #E2D3C4;   /* бордеры инпутов */
+  --color-terra: #C2703D;       /* терракотовый акцент */
+  --color-terra-dark: #A85A2E;  /* акцент при наведении / сильный текст */
+  --color-terra-soft: #D98E5F;  /* светлый терракотовый для градиентов */
+  --color-terra-50: #FBF1EA;    /* едва тёплая заливка */
+  --color-terra-100: #F5E2D3;   /* тёплая заливка поглубже */
+  --color-cocoa: #3D2F26;       /* основной текст — тёмно-коричневый */
+  --color-cocoa-soft: #6B5748;  /* текст послабже */
+  --color-taupe: #A08B7C;       /* вторичный текст */
+  --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-cream);
+  color: var(--color-cocoa);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(194, 112, 61, 0.22);
+}
+
+/* ===== Таблицы калькулятора: внутренний скролл, липкий заголовок, зебра ===== */
+.bm-table-wrap {
+  overflow: auto;
+  max-height: 520px;
+  border: 1px solid var(--color-sand);
+  border-radius: 12px;
+  background: #fff;
+  scrollbar-width: thin;
+  scrollbar-color: #d9c7b8 transparent;
+}
+.bm-table-wrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.bm-table-wrap::-webkit-scrollbar-thumb {
+  background: #dcc9b9;
+  border-radius: 4px;
+}
+.bm-table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bm-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+}
+.bm-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--color-parchment);
+  color: var(--color-taupe);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--color-sand);
+  box-shadow: 0 1px 0 rgba(61, 47, 38, 0.04);
+  white-space: nowrap;
+}
+.bm-table thead th.bm-num {
+  text-align: right;
+}
+.bm-table tbody td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #f4ede6;
+  vertical-align: middle;
+}
+.bm-table tbody tr:last-child td {
+  border-bottom: none;
+}
+/* зебра — едва тёплая */
+.bm-table tbody tr:nth-child(even) {
+  background: #fbf7f1;
+}
+.bm-table tbody tr {
+  transition: background 0.12s ease;
+}
+.bm-table tbody tr:hover {
+  background: #f8efe6;
 }
