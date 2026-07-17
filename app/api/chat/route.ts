@@ -2,6 +2,13 @@
 // Ключи живут только в env-переменных (Vercel), в браузер не попадают.
 // Без единой env-переменной работает из коробки через Pollinations.
 
+// Явный nodejs-рантайм (поддерживается для route handlers, см. docs route-segment-config)
+// и лимит длительности функции: Vercel читает maxDuration из сборки и поднимает
+// таймаут serverless-функции до 60 сек (иначе дефолт платформы может оборвать
+// долгий ответ Pollinations HTML-страницей ошибки).
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 type ChatMessage = {
   role: string;
   content: string;
@@ -169,26 +176,51 @@ export async function POST(request: Request) {
   }
 
   // --- Вызов LLM ---
+  const requestBody = JSON.stringify({
+    model: provider.model,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...messages.slice(-12), // не раздуваем контекст — бережём бесплатные токены
+    ],
+    temperature: 0.4,
+    max_tokens: 1000,
+  });
+
+  // До двух попыток: основная + один повтор при сетевой ошибке/таймауте/5xx (пауза 1 сек).
+  // Таймаут апстрима 20 сек ⇒ худший случай ~41 сек < maxDuration (60).
+  const fetchWithRetry = async (): Promise<Response> => {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 1000));
+      try {
+        const resp = await fetch(`${provider.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // Для Pollinations ключа нет — подставляем любую строку, сервис её принимает.
+            Authorization: `Bearer ${resolved.apiKey ?? 'anonymous'}`,
+            ...(provider.extraHeaders ?? {}),
+          },
+          body: requestBody,
+          signal: AbortSignal.timeout(20_000), // таймаут 20 сек на ответ модели
+        });
+        // 5xx — проблема на стороне провайдера, повторяем один раз.
+        if (resp.status >= 500 && attempt === 0) {
+          console.error('LLM upstream 5xx, повторяем', resolved.name, resp.status);
+          continue;
+        }
+        return resp;
+      } catch (err) {
+        // Сетевая ошибка или таймаут — один повтор.
+        console.error('LLM fetch failed (попытка', attempt + 1, ')', resolved.name, err);
+        lastErr = err;
+      }
+    }
+    throw lastErr;
+  };
+
   try {
-    const upstream = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Для Pollinations ключа нет — подставляем любую строку, сервис её принимает.
-        Authorization: `Bearer ${resolved.apiKey ?? 'anonymous'}`,
-        ...(provider.extraHeaders ?? {}),
-      },
-      body: JSON.stringify({
-        model: provider.model,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...messages.slice(-12), // не раздуваем контекст — бережём бесплатные токены
-        ],
-        temperature: 0.4,
-        max_tokens: 1000,
-      }),
-      signal: AbortSignal.timeout(30_000), // таймаут ~30 сек на ответ модели
-    });
+    const upstream = await fetchWithRetry();
 
     if (!upstream.ok) {
       const text = await upstream.text();
