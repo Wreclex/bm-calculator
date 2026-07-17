@@ -131,6 +131,7 @@ export const makeDefaults = (): FormValues => ({
     buildingWidth: 6.015, buildingLength: 17.17, floorHeight: 2.92,
     spHeight: 2.59, spWidth: 1.19,
     productType: "building",
+    spThickness: 100, construction: "standard", italianSystem: false, floors: 1,
   },
   materialsConst: [
     { id: "frameTop", name: "Рама верхняя с наполнением", unit: "м²", qty: CA, price: 4900, frame: true },

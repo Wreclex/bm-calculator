@@ -33,6 +33,11 @@ export interface Params {
   spHeight: number | null;
   spWidth: number | null;
   productType: "building" | "none";
+  /* --- v4: расширенные параметры --- */
+  spThickness: number | null;        // толщина сэндвич-панели, мм (80/100/150/200)
+  construction: "light" | "standard" | "reinforced"; // конструктив → пресет коэф. толщины рамы
+  italianSystem: boolean;            // итальянская система (справочно, уходит в сводку и ИИ)
+  floors: number | null;             // количество этажей
 }
 
 export interface FormValues {
@@ -89,6 +94,10 @@ export const formSchema = z.object({
     spHeight: num,
     spWidth: num,
     productType: z.enum(["building", "none"]),
+    spThickness: num,
+    construction: z.enum(["light", "standard", "reinforced"]),
+    italianSystem: z.boolean(),
+    floors: num,
   }),
   materialsConst: z.array(lineItem),
   materialsVar: z.array(lineItem),
